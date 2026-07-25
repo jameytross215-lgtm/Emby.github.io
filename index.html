@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EmbyTube Blob Edition</title>
+    <style>
+        body { background:#050505; color:#f5f5f5; font-family:Arial,sans-serif; margin:0; }
+        * { box-sizing:border-box; }
+        header {
+            background:#181818; padding:15px 20px; display:flex;
+            justify-content:space-between; align-items:center; border-bottom:2px solid #333;
+        }
+        .logo { font-size:24px; font-weight:bold; color:#ff4444; }
+        nav a {
+            color:#f5f5f5; margin-left:15px; text-decoration:none; font-size:14px;
+            padding:4px 8px; border-radius:4px;
+        }
+        nav a:hover { background:#333; color:#ff4444; }
+        .user-status { font-size:13px; color:#ccc; }
+        .layout { display:flex; }
+        .sidebar {
+            width:220px; background:#101010; border-right:1px solid #333;
+            padding:15px; min-height:calc(100vh - 60px);
+        }
+        .sidebar h3 { margin-top:0; font-size:18px; }
+        .sidebar a {
+            display:block; color:#ccc; text-decoration:none; padding:6px 4px;
+            border-radius:4px; font-size:13px;
+        }
+        .sidebar a:hover { background:#222; color:#ff4444; }
+        .main { flex:1; padding:20px; }
+        .page-title { font-size:24px; margin-bottom:10px; }
+        .small-text { font-size:12px; color:#aaa; }
+        .hidden { display:none; }
+        .video-grid {
+            display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:15px;
+        }
+        .video-card {
+            background:#151515; padding:10px; border-radius:8px;
+            border:1px solid #333; cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+        }
+        .video-info {
+            flex:1;
+        }
+        .video-title { font-size:16px; margin:5px 0; }
+        .video-meta { font-size:12px; color:#aaa; }
+        .delete-btn {
+            font-size:18px;
+            color:#ff4444;
+            cursor:pointer;
+            margin-left:10px;
+            flex-shrink:0;
+        }
+        .delete-btn:hover {
+            color:#ff2222;
+        }
+        input,button,select,textarea {
+            padding:8px; margin:6px 0; width:100%; border-radius:5px;
+            border:none; font-size:14px;
+        }
+        button { background:#ff4444; color:white; cursor:pointer; }
+        button:hover { background:#ff2222; }
+        .form-box {
+            background:#151515; padding:15px; border-radius:8px;
+            border:1px solid #333; max-width:450px;
+        }
+        video { width:100%; border-radius:8px; background:black; }
+        .watch-layout { display:grid; grid-template-columns:2fr 1fr; gap:20px; }
+        .comments-box {
+            background:#151515; padding:10px; border-radius:8px;
+            border:1px solid #333; margin-top:10px;
+        }
+        .comment { border-bottom:1px solid #333; padding:6px 0; }
+        .comment:last-child { border-bottom:none; }
+        .comment-author { font-size:12px; color:#ff8888; }
+        .comment-text { font-size:13px; }
+        .profile-box,.channel-box {
+            background:#151515; padding:15px; border-radius:8px;
+            border:1px solid #333; max-width:450px;
+        }
+        .profile-row { display:flex; justify-content:space-between; margin:4px 0; }
+        .badge {
+            display:inline-block; padding:3px 8px; border-radius:12px;
+            background:#333; font-size:11px;
+        }
+        .badge.green { background:#44ff88; color:#000; }
+        .badge.red { background:#ff4444; }
+        .pfp {
+            width:64px; height:64px; border-radius:50%; background:#333;
+            object-fit:cover;
+        }
+        #pfpDrop,#videoDrop {
+            width:100%; height:150px; border:2px dashed #555; border-radius:10px;
+            display:flex; align-items:center; justify-content:center; cursor:pointer;
+            margin-bottom:10px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">EmbyTube</div>
+    <nav id="navBar"></nav>
+    <div class="user-status">User: <span id="currentUser">Guest</span></div>
+</header>
+
+<div class="layout">
+    <div class="sidebar">
+        <h3>Categories</h3>
+        <a href="#" onclick="filterCategory('all')">All</a>
+        <a href="#" onclick="filterCategory('gaming')">Gaming</a>
+        <a href="#" onclick="filterCategory('horror')">Horror</a>
+        <a href="#" onclick="filterCategory('kids')">Kids</a>
+        <a href="#" onclick="filterCategory('music')">Music</a>
+        <a href="#" onclick="filterCategory('shorts')">Shorts</a>
+
+        <h3 style="margin-top:20px;">Pages</h3>
+        <a href="#" onclick="showPage('home')">Home</a>
+        <a href="#" onclick="showPage('upload')">Upload</a>
+        <a href="#" onclick="showPage('profile')">Profile</a>
+        <a href="#" onclick="showPage('channel')">Channel</a>
+    </div>
+
+    <div class="main">
+
+        <!-- HOME -->
+        <div id="home" class="page">
+            <h1 class="page-title">Latest Videos</h1>
+            <p class="small-text">Videos & PFPs stored as blobs in IndexedDB. Offline mini‑YouTube.</p>
+            <div class="video-grid" id="videoGrid"></div>
+        </div>
+
+        <!-- LOGIN -->
+        <div id="login" class="page hidden">
+            <h1 class="page-title">Log In</h1>
+            <div class="form-box">
+                <input id="loginEmail" type="text" placeholder="Email">
+                <input id="loginPass" type="password" placeholder="Password">
+                <button onclick="login()">Log In</button>
+            </div>
+        </div>
+
+        <!-- SIGN UP -->
+        <div id="signin" class="page hidden">
+            <h1 class="page-title">Create Account</h1>
+            <div class="form-box">
+                <input id="signUser" type="text" placeholder="Username">
+                <input id="signEmail" type="text" placeholder="Email">
+                <input id="signPass" type="password" placeholder="Password">
+                <button onclick="signIn()">Sign Up</button>
+            </div>
+        </div>
+
+        <!-- UPLOAD -->
+        <div id="upload" class="page hidden">
+            <h1 class="page-title">Upload Video</h1>
+
+            <div id="uploadLocked" class="form-box">
+                <p>You must be logged in to upload videos.</p>
+                <button onclick="showPage('login')">Go to Login</button>
+            </div>
+
+            <div id="uploadUnlocked" class="form-box hidden">
+                <div id="videoDrop"><span>Drag & Drop Video File (MP4/WebM)</span></div>
+                <input type="text" id="videoTitle" placeholder="Video Title">
+                <select id="videoCategory">
+                    <option value="gaming">Gaming</option>
+                    <option value="horror">Horror</option>
+                    <option value="kids">Kids</option>
+                    <option value="music">Music</option>
+                    <option value="shorts">Shorts</option>
+                </select>
+                <button onclick="uploadVideo()">Save Video</button>
+            </div>
+        </div>
+
+        <!-- WATCH -->
+        <div id="watch" class="page hidden">
+            <h1 class="page-title">Watch Video</h1>
+            <div class="watch-layout">
+                <div>
+                    <video id="watchPlayer" controls></video>
+                    <h2 id="watchTitle"></h2>
+                    <p id="watchUploader"></p>
+                    <p id="watchCategory"></p>
+                    <p id="watchSubs"></p>
+
+                    <button onclick="playVideo()">Play</button>
+                    <button onclick="pauseVideo()">Pause</button>
+
+                    <button onclick="heartCurrentVideo()">Heart</button>
+                    <button onclick="unheartCurrentVideo()">Unheart</button>
+                    <button onclick="dislikeCurrentVideo()">Dislike</button>
+
+                    <button onclick="subscribeChannel()">Sub</button>
+                    <button onclick="unsubscribeChannel()">Unsub</button>
+                </div>
+                <div>
+                    <div class="comments-box">
+                        <h3>Comments</h3>
+                        <div id="commentsList"></div>
+                        <textarea id="commentInput" placeholder="Add a comment..."></textarea>
+                        <button onclick="addComment()">Post Comment</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROFILE -->
+        <div id="profile" class="page hidden">
+            <h1 class="page-title">Profile</h1>
+            <div class="profile-box">
+                <div class="profile-row"><span>Username:</span><span id="profileName">Guest</span></div>
+                <div class="profile-row"><span>Status:</span><span id="profileStatus"><span class="badge">Unregistered</span></span></div>
+                <div class="profile-row"><span>Uploads:</span><span id="profileUploads">0</span></div>
+                <div class="profile-row"><span>Subs:</span><span id="profileSubs">0</span></div>
+                <div class="profile-row"><span>Role:</span><span id="profileRole"><span class="badge red">Viewer</span></span></div>
+            </div>
+
+            <h2 class="page-title" style="margin-top:20px;">Edit Profile</h2>
+            <div class="form-box">
+                <h3>Profile Picture</h3>
+                <div id="pfpDrop"><span>Drag & Drop PNG/JPEG Here</span></div>
+                <img id="pfpPreview" class="pfp" style="margin-top:10px;display:none;">
+                <input id="editUsername" type="text" placeholder="New Username">
+                <textarea id="editBio" placeholder="Bio"></textarea>
+                <button onclick="saveProfileChanges()">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- CHANNEL -->
+        <div id="channel" class="page hidden">
+            <h1 class="page-title">Channel</h1>
+            <div class="channel-box">
+                <img id="channelPfp" class="pfp" src="" alt="pfp">
+                <h2 id="channelName"></h2>
+                <p id="channelBio"></p>
+                <p id="channelSubs"></p>
+            </div>
+            <h3 style="margin-top:20px;">Channel Videos</h3>
+            <div class="video-grid" id="channelVideos"></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let loggedInUser = null;
+    let currentVideoIndex = null;
+    let db = null;
+    let pendingVideoFile = null;
+    let pendingPfpFile = null;
+
+    // IndexedDB init
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open("embytube_db", 1);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains("users")) {
+                    db.createObjectStore("users", { keyPath: "email" });
+                }
+                if (!db.objectStoreNames.contains("videos")) {
+                    db.createObjectStore("videos", { keyPath: "id", autoIncrement: true });
+                }
+                if (!db.objectStoreNames.contains("meta")) {
+                    db.createObjectStore("meta", { keyPath: "key" });
+                }
+            };
+            request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+            request.onerror = (e) => reject(e);
+        });
+    }
+
+    // Users in IndexedDB
+    function getAllUsers() {
+        return new Promise((resolve) => {
+            const tx = db.transaction("users", "readonly");
+            const store = tx.objectStore("users");
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+        });
+    }
+    function saveUser(user) {
+        return new Promise((resolve) => {
+            const tx = db.transaction("users", "readwrite");
+            const store = tx.objectStore("users");
+            store.put(user).onsuccess = () => resolve();
+        });
+    }
+    function getUserByEmail(email) {
+        return new Promise((resolve) => {
+            const tx = db.transaction("users", "readonly");
+            const store = tx.objectStore("users");
+            store.get(email).onsuccess = (e) => resolve(e.target.result || null);
+        });
+    }
+
+    // Videos in IndexedDB
+    function getAllVideos() {
+        return new Promise((resolve) => {
+            const tx = db.transaction("videos", "readonly");
+            const store = tx.objectStore("videos");
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+        });
+    }
+    function saveVideo(video) {
+        return new Promise((resolve) => {
+            const tx = db.transaction("videos", "readwrite");
+            const store = tx.objectStore("videos");
+            store.put(video).onsuccess = () => resolve();
+        });
+    }
+    function getVideoById(id) {
+        return new Promise((resolve) => {
+            const tx = db.transaction("videos", "readonly");
+            const store = tx.objectStore("videos");
+            store.get(id).onsuccess = (e) => resolve(e.target.result || null);
+        });
+    }
+
+    // Meta store (comments, reactions, subs)
+    async function getMeta(key) {
+        return new Promise((resolve) => {
+            const tx = db.transaction("meta", "readonly");
+            const store = tx.objectStore("meta");
+            store.get(key).onsuccess = (e) => {
+                const res = e.target.result;
+                resolve(res ? res.value : null);
+            };
+        });
+    }
+    async function setMeta(key, value) {
+        return new Promise((resolve) => {
+            const tx = db.transaction("meta", "readwrite");
+            const store = tx.objectStore("meta");
+            store.put({ key, value }).onsuccess = () => resolve();
+        });
+    }
+</script>
+
+</body>
+</html>
+<script>
+    // Navigation
+    function updateNav() {
+        const nav = document.getElementById("navBar");
+        if (loggedInUser) {
+            nav.innerHTML = `
+                <a href="#" onclick="showPage('home')">Home</a>
+                <a href="#" onclick="showPage('upload')">Upload</a>
+                <a href="#" onclick="showPage('profile')">Profile</a>
+                <a href="#" onclick="showPage('channel')">Channel</a>
+                <a href="#" onclick="logout()">Log Out</a>
+            `;
+        } else {
+            nav.innerHTML = `
+                <a href="#" onclick="showPage('home')">Home</a>
+                <a href="#" onclick="showPage('upload')">Upload</a>
+                <a href="#" onclick="showPage('login')">Login</a>
+                <a href="#" onclick="showPage('signin')">Sign Up</a>
+            `;
+        }
+    }
+
+    function showPage(page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+        document.getElementById(page).classList.remove('hidden');
+
+        if (page === 'upload') {
+            if (loggedInUser) {
+                document.getElementById('uploadLocked').classList.add('hidden');
+                document.getElementById('uploadUnlocked').classList.remove('hidden');
+            } else {
+                document.getElementById('uploadLocked').classList.remove('hidden');
+                document.getElementById('uploadUnlocked').classList.add('hidden');
+            }
+        }
+        if (page === 'profile') updateProfile();
+        if (page === 'channel') renderChannelPage();
+    }
+
+    async function renderVideos(filter = 'all') {
+        const grid = document.getElementById('videoGrid');
+        grid.innerHTML = "";
+        const videos = await getAllVideos();
+        const filtered = videos.filter(v => filter === 'all' || v.category === filter);
+
+        filtered.forEach(v => {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            card.onclick = () => openVideo(v.id);
+
+            const info = document.createElement('div');
+            info.className = 'video-info';
+
+            const title = document.createElement('div');
+            title.className = 'video-title';
+            title.innerText = v.title;
+
+            const meta = document.createElement('div');
+            meta.className = 'video-meta';
+            meta.innerText = `By ${v.uploader} • ${v.category} • ❤️ ${v.likes || 0} • 💔 ${v.dislikes || 0}`;
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            card.appendChild(info);
+
+            grid.appendChild(card);
+        });
+    }
+
+    function filterCategory(cat) { renderVideos(cat); }
+
+    async function signIn() {
+        const username = document.getElementById("signUser").value;
+        const email = document.getElementById("signEmail").value;
+        const pass = document.getElementById("signPass").value;
+
+        if (username.length < 3 || email.length < 4 || pass.length < 4) {
+            alert("Username, email, and password must be at least 3–4 characters.");
+            return;
+        }
+
+        const existing = await getUserByEmail(email);
+        if (existing) {
+            alert("Email already exists.");
+            return;
+        }
+
+        const user = { email, username, password: pass, bio: "", pfpBlob: null };
+        await saveUser(user);
+
+        loggedInUser = { email, username };
+        document.getElementById("currentUser").innerText = username;
+        updateNav();
+        showPage('home');
+    }
+
+    async function login() {
+        const email = document.getElementById("loginEmail").value;
+        const pass = document.getElementById("loginPass").value;
+
+        const user = await getUserByEmail(email);
+        if (!user || user.password !== pass) {
+            alert("Wrong email or password.");
+            return;
+        }
+
+        loggedInUser = { email: user.email, username: user.username };
+        document.getElementById("currentUser").innerText = user.username;
+        updateNav();
+        showPage('home');
+    }
+
+    function logout() {
+        loggedInUser = null;
+        document.getElementById("currentUser").innerText = "Guest";
+        updateNav();
+        showPage('home');
+    }
+
+    // Drag & drop video
+    const videoDrop = document.getElementById("videoDrop");
+    videoDrop.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        videoDrop.style.borderColor = "#ff4444";
+    });
+    videoDrop.addEventListener("dragleave", () => {
+        videoDrop.style.borderColor = "#555";
+    });
+    videoDrop.addEventListener("drop", (e) => {
+        e.preventDefault();
+        videoDrop.style.borderColor = "#555";
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        if (!file.type.startsWith("video/")) {
+            alert("Only video files allowed.");
+            return;
+        }
+        pendingVideoFile = file;
+        videoDrop.innerHTML = `<span>Selected: ${file.name}</span>`;
+    });
+
+    async function uploadVideo() {
+        if (!loggedInUser) {
+            alert("You must be logged in.");
+            return;
+        }
+        if (!pendingVideoFile) {
+            alert("Drag & drop a video file first.");
+            return;
+        }
+        const title = document.getElementById("videoTitle").value;
+        const category = document.getElementById("videoCategory").value;
+        if (!title) {
+            alert("Title required.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const arrayBuffer = reader.result;
+            const blob = new Blob([arrayBuffer], { type: pendingVideoFile.type });
+
+            const video = {
+                id: Date.now(),
+                title,
+                uploader: loggedInUser.username,
+                category,
+                likes: 0,
+                dislikes: 0,
+                blob
+            };
+            await saveVideo(video);
+            pendingVideoFile = null;
+            videoDrop.innerHTML = `<span>Drag & Drop Video File (MP4/WebM)</span>`;
+            document.getElementById("videoTitle").value = "";
+            await renderVideos();
+            showPage('home');
+        };
+        reader.readAsArrayBuffer(pendingVideoFile);
+    }
+
+    async function openVideo(id) {
+        const v = await getVideoById(id);
+        if (!v) return;
+        currentVideoIndex = id;
+
+        const url = URL.createObjectURL(v.blob);
+        const player = document.getElementById("watchPlayer");
+        player.src = url;
+
+        document.getElementById("watchTitle").innerText = v.title;
+        document.getElementById("watchUploader").innerText = "Uploader: " + v.uploader;
+        document.getElementById("watchCategory").innerText = "Category: " + v.category;
+
+        const subs = await getMeta("subs") || {};
+        const count = subs[v.uploader] ? subs[v.uploader].length : 0;
+        document.getElementById("watchSubs").innerText = "Subs: " + count;
+
+        await renderCommentsForVideo(id);
+        showPage("watch");
+    }
+
+    function playVideo() { document.getElementById("watchPlayer").play(); }
+    function pauseVideo() { document.getElementById("watchPlayer").pause(); }
+
+    async function renderCommentsForVideo(id) {
+        const comments = await getMeta("comments") || {};
+        const list = document.getElementById("commentsList");
+        list.innerHTML = "";
+        const key = String(id);
+        const videoComments = comments[key] || [];
+        videoComments.forEach(c => {
+            const div = document.createElement("div");
+            div.className = "comment";
+            const author = document.createElement("div");
+            author.className = "comment-author";
+            author.innerText = c.author;
+            const text = document.createElement("div");
+            text.className = "comment-text";
+            text.innerText = c.text;
+            div.appendChild(author);
+            div.appendChild(text);
+            list.appendChild(div);
+        });
+    }
+
+    async function addComment() {
+        if (currentVideoIndex === null) {
+            alert("No video selected.");
+            return;
+        }
+        const text = document.getElementById("commentInput").value;
+        if (!text) {
+            alert("Comment cannot be empty.");
+            return;
+        }
+        const author = loggedInUser ? loggedInUser.username : "Guest";
+        const comments = await getMeta("comments") || {};
+        const key = String(currentVideoIndex);
+        if (!comments[key]) comments[key] = [];
+        comments[key].push({ author, text });
+        await setMeta("comments", comments);
+        document.getElementById("commentInput").value = "";
+        await renderCommentsForVideo(currentVideoIndex);
+    }
+
+    // ❤️ HEART SYSTEM
+    async function heartCurrentVideo() {
+        if (!loggedInUser) { alert("Log in to heart."); return; }
+        if (currentVideoIndex === null) return;
+
+        const reactions = await getMeta("reactions") || {};
+        const key = loggedInUser.username + ":" + currentVideoIndex;
+        const prev = reactions[key];
+
+        const v = await getVideoById(currentVideoIndex);
+        if (!v) return;
+
+        if (prev === "heart") { alert("You already hearted this."); return; }
+        if (prev === "dislike") v.dislikes = Math.max(0, (v.dislikes || 0) - 1);
+        v.likes = (v.likes || 0) + 1;
+
+        reactions[key] = "heart";
+        await setMeta("reactions", reactions);
+        await saveVideo(v);
+        await renderVideos();
+    }
+
+    async function unheartCurrentVideo() {
+        if (!loggedInUser) { alert("Log in to unheart."); return; }
+        if (currentVideoIndex === null) return;
+
+        const reactions = await getMeta("reactions") || {};
+        const key = loggedInUser.username + ":" + currentVideoIndex;
+        const prev = reactions[key];
+
+        const v = await getVideoById(currentVideoIndex);
+        if (!v) return;
+
+        if (prev !== "heart") { alert("You haven't hearted this yet."); return; }
+        v.likes = Math.max(0, (v.likes || 0) - 1);
+
+        reactions[key] = null;
+        await setMeta("reactions", reactions);
+        await saveVideo(v);
+        await renderVideos();
+    }
+
+    async function dislikeCurrentVideo() {
+        if (!loggedInUser) { alert("Log in to dislike."); return; }
+        if (currentVideoIndex === null) return;
+
+        const reactions = await getMeta("reactions") || {};
+        const key = loggedInUser.username + ":" + currentVideoIndex;
+        const prev = reactions[key];
+
+        const v = await getVideoById(currentVideoIndex);
+        if (!v) return;
+
+        if (prev === "dislike") { alert("You already disliked this."); return; }
+        if (prev === "heart") v.likes = Math.max(0, (v.likes || 0) - 1);
+        v.dislikes = (v.dislikes || 0) + 1;
+
+        reactions[key] = "dislike";
+        await setMeta("reactions", reactions);
+        await saveVideo(v);
+        await renderVideos();
+    }
+
+    // SUBSCRIBE
+    async function subscribeChannel() {
+        if (!loggedInUser) { alert("Log in to sub."); return; }
+        if (currentVideoIndex === null) return;
+
+        const v = await getVideoById(currentVideoIndex);
+        if (!v) return;
+        const channel = v.uploader;
+
+        const subs = await getMeta("subs") || {};
+        if (!subs[channel]) subs[channel] = [];
+        if (subs[channel].includes(loggedInUser.username)) {
+            alert("Already subbed.");
+            return;
+        }
+        subs[channel].push(loggedInUser.username);
+        await setMeta("subs", subs);
+        alert("Subbed to " + channel);
+        await openVideo(currentVideoIndex);
+    }
+
+    async function unsubscribeChannel() {
+        if (!loggedInUser) { alert("Log in to unsub."); return; }
+        if (currentVideoIndex === null) return;
+
+        const v = await getVideoById(currentVideoIndex);
+        if (!v) return;
+        const channel = v.uploader;
+
+        const subs = await getMeta("subs") || {};
+        if (!subs[channel]) subs[channel] = [];
+
+        subs[channel] = subs[channel].filter(u => u !== loggedInUser.username);
+        await setMeta("subs", subs);
+        alert("Unsubbed from " + channel);
+        await openVideo(currentVideoIndex);
+    }
+
+    // PROFILE
+    async function updateProfile() {
+        const nameElem = document.getElementById("profileName");
+        const statusElem = document.getElementById("profileStatus");
+        const uploadsElem = document.getElementById("profileUploads");
+        const subsElem = document.getElementById("profileSubs");
+        const roleElem = document.getElementById("profileRole");
+
+        if (loggedInUser) {
+            const user = await getUserByEmail(loggedInUser.email);
+            nameElem.innerText = user.username;
+            statusElem.innerHTML = '<span class="badge green">Registered</span>';
+
+            const videos = await getAllVideos();
+            const uploadCount = videos.filter(v => v.uploader === user.username).length;
+            uploadsElem.innerText = uploadCount;
+
+            const subs = await getMeta("subs") || {};
+            let subCount = 0;
+            for (let ch in subs) {
+                if (subs[ch].includes(user.username)) subCount++;
+            }
+            subsElem.innerText = subCount;
+            roleElem.innerHTML = '<span class="badge red">Creator</span>';
+
+            document.getElementById("editUsername").value = user.username;
+            document.getElementById("editBio").value = user.bio || "";
+
+            if (user.pfpBlob) {
+                const url = URL.createObjectURL(user.pfpBlob);
+                pfpPreview.src = url;
+                pfpPreview.style.display = "block";
+            } else {
+                pfpPreview.style.display = "none";
+            }
+        } else {
+            nameElem.innerText = "Guest";
+            statusElem.innerHTML = '<span class="badge">Unregistered</span>';
+            uploadsElem.innerText = "0";
+            subsElem.innerText = "0";
+            roleElem.innerHTML = '<span class="badge red">Viewer</span>';
+            pfpPreview.style.display = "none";
+        }
+    }
+
+    async function saveProfileChanges() {
+        if (!loggedInUser) {
+            alert("Log in to edit profile.");
+            return;
+        }
+        const newUsername = document.getElementById("editUsername").value;
+        const newBio = document.getElementById("editBio").value;
+
+        let user = await getUserByEmail(loggedInUser.email);
+        if (!user) return;
+
+        if (newUsername.length > 0) {
+            user.username = newUsername;
+            loggedInUser.username = newUsername;
+        }
+        if (newBio.length > 0) user.bio = newBio;
+
+        if (pendingPfpFile) {
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const blob = new Blob([reader.result], { type: pendingPfpFile.type });
+                user.pfpBlob = blob;
+                await saveUser(user);
+                document.getElementById("currentUser").innerText = user.username;
+                await updateProfile();
+                await renderVideos();
+                alert("Profile updated.");
+                pendingPfpFile = null;
+            };
+            reader.readAsArrayBuffer(pendingPfpFile);
+        } else {
+            await saveUser(user);
+            document.getElementById("currentUser").innerText = user.username;
+            await updateProfile();
+            await renderVideos();
+            alert("Profile updated.");
+        }
+    }
+
+    // DELETE VIDEO (CHANNEL PAGE ONLY)
+    async function deleteVideo(id) {
+        const v = await getVideoById(id);
+        if (!v) return;
+
+        if (!loggedInUser || loggedInUser.username !== v.uploader) {
+            alert("You can only delete your own videos.");
+            return;
+        }
+
+        const tx = db.transaction("videos", "readwrite");
+        const store = tx.objectStore("videos");
+        store.delete(id);
+
+        alert("Video deleted.");
+        await renderChannelPage();
+        await renderVideos();
+    }
+
+    async function renderChannelPage() {
+        const channelPfp = document.getElementById("channelPfp");
+        const channelName = document.getElementById("channelName");
+        const channelBio = document.getElementById("channelBio");
+        const channelSubs = document.getElementById("channelSubs");
+        const channelVideos = document.getElementById("channelVideos");
+        channelVideos.innerHTML = "";
+
+        if (!loggedInUser) {
+            channelName.innerText = "Guest Channel";
+            channelBio.innerText = "Log in to have a real channel.";
+            channelPfp.src = "";
+            channelSubs.innerText = "Subs: 0";
+            return;
+        }
+
+        const user = await getUserByEmail(loggedInUser.email);
+        channelName.innerText = user.username;
+        channelBio.innerText = user.bio || "No bio yet.";
+        if (user.pfpBlob) {
+            const url = URL.createObjectURL(user.pfpBlob);
+            channelPfp.src = url;
+        } else {
+            channelPfp.src = "";
+        }
+
+        const subs = await getMeta("subs") || {};
+        const count = subs[user.username] ? subs[user.username].length : 0;
+        channelSubs.innerText = "Subs: " + count;
+
+        const videos = await getAllVideos();
+        const myVideos = videos.filter(v => v.uploader === user.username);
+        myVideos.forEach(v => {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+
+            const info = document.createElement('div');
+            info.className = 'video-info';
+
+            const title = document.createElement('div');
+            title.className = 'video-title';
+            title.innerText = v.title;
+
+            const meta = document.createElement('div');
+            meta.className = 'video-meta';
+            meta.innerText = `❤️ ${v.likes || 0} • 💔 ${v.dislikes || 0}`;
+
+            info.appendChild(title);
+            info.appendChild(meta);
+
+            const del = document.createElement('div');
+            del.className = 'delete-btn';
+            del.innerText = "❌";
+            del.onclick = (e) => {
+                e.stopPropagation();
+                deleteVideo(v.id);
+            };
+
+            card.appendChild(info);
+            card.appendChild(del);
+            card.onclick = () => openVideo(v.id);
+
+            channelVideos.appendChild(card);
+            channelVideos.appendChild(card);
+        });
+    }
+
+    // PFP drag & drop
+    const pfpDrop = document.getElementById("pfpDrop");
+    const pfpPreview = document.getElementById("pfpPreview");
+
+    pfpDrop.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        pfpDrop.style.borderColor = "#ff4444";
+    });
+    pfpDrop.addEventListener("dragleave", () => {
+        pfpDrop.style.borderColor = "#555";
+    });
+    pfpDrop.addEventListener("drop", (e) => {
+        e.preventDefault();
+        pfpDrop.style.borderColor = "#555";
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            alert("Only PNG/JPEG images allowed.");
+            return;
+        }
+        pendingPfpFile = file;
+        pfpDrop.innerHTML = `<span>Selected: ${file.name}</span>`;
+    });
+
+    // Init
+    (async () => {
+        await openDB();
+        updateNav();
+        await renderVideos();
+    })();
+</script>
